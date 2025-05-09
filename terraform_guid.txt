@@ -1,0 +1,161 @@
+A következő parancsokat abban a mappaban futtasuk ahol a terraform fájlok vannak.
+
+terraform init = Ez a parancs inicializálja a Terraform munkakörnyezetét. 
+A szükséges pluginokat (pl. a cloud provider pluginok) letölti és beállítja. 
+Emellett létrehozza a szükséges fájlokat, mint például a .terraform könyvtár, és beállítja a backend-et, ha szükséges.
+
+terrafotm fmt = Ez a parancs a Terraform konfigurációs fájlokat (pl. .tf fájlok) automatikusan formázza a megfelelő stílusban.
+A célja, hogy a kódot konzisztens, könnyen olvasható és a Terraform által ajánlott stílusúvá tegye.
+
+terraform validate = Ez a parancs ellenőrzi, hogy a konfigurációs fájlok szintaktikailag helyesek-e, és megfelelnek-e a Terraform által elvárt struktúrának.
+Nem hajt végre semmilyen változást, csak az érvényességet ellenőrzi.
+
+terraform plan = Ez a parancs szimulálja a Terraform konfiguráció alapján végrehajtott változtatásokat.
+Az terraform plan megmutatja, hogy milyen műveletek történnének, például új erőforrások létrehozása, meglévők módosítása vagy törlése.
+Az eredményt terraform apply futtatása előtt ellenőrizhetjük, hogy megbizonyosodjunk arról, hogy a kívánt változtatások történnének.
+
+terraform apply = Ez a parancs végrehajtja a terraform plan által előállított műveleteket.
+Ezáltal a valós infrastruktúrában létrejönnek, módosulnak vagy törlődnek az erőforrások a konfigurációban meghatározottak szerint.
+Az apply parancsot általában egy felhasználói megerősítés kíséri, mielőtt ténylegesen végrehajtaná a változtatásokat.
+
+terraform destroy = Ez a parancs eltávolítja az összes erőforrást, amelyet a Terraform kezelt.
+Alapvetően a teljes infrastruktúra törlésére használják, amelyet a Terraform konfigurációja hozott létre.
+Használat előtt általában egy megerősítés szükséges, hogy biztosak legyünk a törlésben.
+
+InitID.tf
+
+Data "aws_ami" "amiID":
+Ez egy adatforrás, amely segítségével lekérhetjük egy meglévő Amazon Machine Image (AMI) adatait az AWS-ből.
+aws_ami az az AWS erőforrás típus, amely lehetővé teszi számunkra, hogy egy meglévő AMI-t lekérjünk.
+Az amiID a forrás neve, amelyre a konfiguráció hivatkozik.
+most_recent = true:
+Ez a beállítás azt mondja a Terraform-nak, hogy a legújabb, a feltételeknek megfelelő AMI-t válassza ki.
+filter {}:
+Az AMI-k lekérdezésekor szűrők alkalmazása lehetővé teszi, hogy pontosan meghatározzuk, mely AMI-kat szeretnénk keresni.
+Az első filter a name alapján szűr: az Ubuntu Jammy 22.04-es verzióját keresi, a ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-* névvel.
+A második filter a virtualization-type alapján szűr: csak hvm (hardware virtualizációval) rendelkező AMI-kat keres.
+owners = ["099720109477"]:
+Ez a beállítás az AMI tulajdonosát adja meg. Az 099720109477 az Ubuntu hivatalos AWS fiókazonosítója, tehát az Ubuntu hivatalos AMI-jait fogja keresni.
+output "instance_id":
+Ez a szakasz egy kimeneti változót hoz létre, amely az AMI ID-ját tartalmazza.
+A description paraméterben leírást adunk a kimeneti változóról (jelen esetben az Ubuntu AMI ID-ja).
+Az value paraméterben a data.aws_ami.amiID értéke kerül ki, amely a korábban meghatározott adatforráshoz (aws_ami) tartozó legfrissebb AMI ID-ját tartalmazza.
+
+Ez a konfiguráció lekérdezi az AWS-ből a legújabb, ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-* nevű Ubuntu 22.04-es AMI-t,
+amely hvm virtualizációval rendelkezik, és az Ubuntu hivatalos fiókjából származik. Az AMI ID-ja egy kimeneti változóban (instance_id) lesz visszaadva.
+
+Provider.tf
+
+A provider egy olyan konfigurációs blokk, amely megadja a használt felhőszolgáltatót és annak paramétereit. Jelen esetben az AWS (Amazon Web Services) szolgáltatót használjuk.
+provider "aws":
+Ez a blokk a AWS felhőszolgáltatót határozza meg, amelyet Terraform használni fog a szükséges erőforrások létrehozására, módosítására vagy törlésére.
+region = "us-east-1":
+Az AWS régiót határozza meg, ahol az erőforrásokat kezelni szeretnénk.
+Ebben az esetben az us-east-1 régiót választottuk, ami az USA keleti partján található (virginiai adatközpontok).
+A választott régió hatással van az általunk létrehozott vagy lekért erőforrásokra (pl. EC2 példányok, AMI-k stb.), tehát itt meg kell adni azt a régiót, ahol a szükséges erőforrásokat kezelni kívánjuk.
+
+Ez a provider.tf fájl beállítja az AWS szolgáltatót és meghatározza, hogy az erőforrásokat az us-east-1 régióban kell kezelni.
+Az AWS szolgáltató konfigurációja segít abban, hogy Terraform tudja, melyik felhőszolgáltatót használja és milyen régióban végezze el az operációkat.
+
+Keypair.tf
+
+A keypair.tf fájlban szereplő konfiguráció az AWS Key Pair (kulcspár) erőforrást hozza létre, amely az Amazon EC2 példányokhoz használható SSH kulcspárt biztosít.
+resource "aws_key_pair" "dove-key" blokk:
+resource "aws_key_pair" "dove-key":
+Ez a blokk egy új AWS Key Pair erőforrást hoz létre, amely az EC2 példányokhoz való SSH hozzáféréshez szükséges.
+A aws_key_pair az erőforrás típusát jelöli (AWS kulcspár).
+A "dove-key" a kulcspár erőforrás neve, amit a Terraform konfigurációjában használhatsz hivatkozásként.
+key_name = "dove-key":
+A kulcspár neve, amit az AWS felhőben a kulcspár azonosítására használunk.
+Itt a kulcspár neve dove-key, ami a kulcs nevét jelöli az AWS konzolon is.
+public_key = "":
+Itt a kulcs nyilvános részét kell megadni (public key), amelyet az AWS EC2 példányhoz kapcsolunk.
+Jelenleg az értéke üres (""), tehát ide kell beillesztened a valós nyilvános kulcsot (például az SSH kulcsot, amit generáltál a helyi gépeden).
+A public_key tartalmazza a nyilvános kulcsot, amely lehetővé teszi az EC2 példányhoz való SSH hozzáférést.
+
+A keypair.tf fájl egy AWS kulcspárt hoz létre, amelyet az EC2 példányok SSH hozzáféréséhez használhatsz.
+A key_name az AWS-ben a kulcs nevét adja meg.
+A public_key paraméterbe a kulcs nyilvános részét kell beillesztened, amelyet az EC2 példányokhoz használhatsz.
+
+SecGrp.tf
+
+Ez a Terraform fájl egy AWS biztonsági csoportot (aws_security_group) hoz létre, valamint beállítja a belépési és kilépési szabályokat a csoporthoz.
+aws_security_group "dove-sg":
+Létrehoz egy új AWS biztonsági csoportot (dove-sg), amelyet a következő paraméterekkel konfigurál:
+Név: "dove-sg"
+Leírás: "dove-sg"
+Címkék: egy címkét ad hozzá, ahol a Name kulcs értéke "dove-sg".
+aws_vpc_security_group_ingress_rule "sshfrommyIP":
+Létrehoz egy belépési szabályt a dove-sg biztonsági csoport számára, amely lehetővé teszi az SSH (22-es port) kapcsolatok fogadását csak egy meghatározott IP címről.
+CIDR blokk: 149.200.121.88/32, tehát csak az adott IP címről lehet SSH kapcsolatot létesíteni.
+Port: 22-es port (SSH).
+Protokoll: TCP.
+aws_vpc_security_group_ingress_rule "allow_http":
+Létrehoz egy másik belépési szabályt, amely lehetővé teszi a HTTP (80-as port) kapcsolatok fogadását bárhonnan.
+CIDR blokk: 0.0.0.0/0, tehát bárhonnan érkező kapcsolatokat engedélyez a 80-as porton.
+Port: 80-as port (HTTP).
+Protokoll: TCP.
+aws_vpc_security_group_egress_rule "allowAllOutbond_ipv4":
+Létrehoz egy kilépési szabályt, amely lehetővé teszi az összes kimenő IPv4 kapcsolatot, bárhonnan és bármilyen porton.
+CIDR blokk: 0.0.0.0/0, tehát bárhova lehet kimenő kapcsolatot létesíteni.
+Protokoll: -1, ami minden protokollra vonatkozik (vagyis minden portot és protokollt engedélyez).
+aws_vpc_security_group_egress_rule "allowAllOutbond_ipv6":
+Létrehoz egy kilépési szabályt, amely lehetővé teszi az összes kimenő IPv6 kapcsolatot, bárhonnan és bármilyen porton.
+CIDR blokk: ::/0, tehát bárhova lehet kimenő kapcsolatot létesíteni IPv6-on.
+Protokoll: -1, ami minden protokollra vonatkozik.
+
+Ez a Terraform fájl egy biztonsági csoportot hoz létre az AWS-ben, amely:
+Csak egy adott IP címről (SSH kapcsolat) engedélyezi a belépést.
+Engedélyezi a HTTP (80-as port) kapcsolatokat bárhonnan.
+Engedélyezi az összes kimenő kapcsolatot IPv4 és IPv6 esetén.
+Ez a konfiguráció gyakran használatos olyan esetekben, amikor például egy webalkalmazás biztonsági csoportot hozol létre, amely HTTP hozzáférést biztosít a világ számára,
+ugyanakkor SSH hozzáférést csak egy meghatározott IP címről engedélyez.
+
+Instance.tf
+Ez a Instance.tf fájl egy AWS EC2 példányt hoz létre a Terraform segítségével.
+
+1. resource "aws_instance" "web"
+Ez egy AWS EC2 instance (gépi példány) létrehozását jelenti.
+Az erőforrás neve web, és az aws_instance típusú erőforrást használjuk, amely az AWS EC2 példányokat hozza létre.
+
+2. ami = data.aws_ami.amiID.id
+Az ami paraméter az EC2 példányhoz használt Amazon Machine Image (AMI) azonosítóját tartalmazza.
+
+Az érték a data.aws_ami.amiID.id, ami arra utal, hogy valahol másutt a Terraform kódban egy adatforrást (data source) használnak, hogy lekérjenek egy meglévő AMI-t,
+és annak azonosítóját (id) használják az EC2 példány létrehozásához.
+
+3. instance_type = "t3.micro"
+Az EC2 példány típusát határozza meg, ebben az esetben t3.micro, ami egy kisebb, alacsony költségű példány típus az AWS-en.
+Ez az egyik legkisebb és legolcsóbb instance típus, amit a legtöbb alapszintű alkalmazáshoz használnak.
+
+4. key_name = "dove-key"
+Ez az SSH kulcs neve, amelyet az EC2 példányhoz rendelnek, így SSH-n keresztül hozzáférhetünk az instance-hoz.
+A dove-key kulcsot használnák az EC2 példányhoz történő biztonságos belépéshez.
+
+5. vpc_security_group_ids = [aws_security_group.dove-sg.id]
+Az EC2 példány a dove-sg nevű biztonsági csoportot használja.
+
+Ez a biztonsági csoport az előző security_group.tf fájlban van definiálva, és az instance számára engedélyezi az SSH és HTTP kapcsolatokat.
+
+6. availability_zone = "us-east-1a"
+Az EC2 példány az us-east-1a elérhetőségi zónában kerül elhelyezésre.
+Az AWS rendelkezik különböző elérhetőségi zónákkal (például us-east-1a, us-east-1b stb.), és itt azt választották, hogy a példány az első zónába kerüljön.
+
+7. tags = { ... }
+Címkéket (tags) adunk az EC2 példányhoz, amelyek segíthetnek a példányok rendszerezésében és azonosításában.
+
+A címkék:
+
+Name: "Dove-web" – ez az EC2 példány neve.
+
+Project: "Dove" – a projekt neve, amelyhez az EC2 példány tartozik.
+
+Ez a konfiguráció egy AWS EC2 példányt hoz létre a következőkkel:
+Az AMI egy másik adatforrástól származik, amely az AMI azonosítót biztosít.
+A példány típusát t3.micro-ra állítják, ami egy kis, alacsony költségű példány.
+Az ssh hozzáféréshez a dove-key SSH kulcsot használja.
+A dove-sg biztonsági csoportot rendelik hozzá, így biztosítva az SSH és HTTP kapcsolatokat.
+Az elérhetőségi zóna us-east-1a.
+Két címke van hozzárendelve: Name (Dove-web) és Project (Dove).
+Ez egy alap EC2 példány beállítása, amelyet általában webalkalmazások futtatására használnak,
+mivel HTTP kapcsolatokat engedélyez a világ bármely pontjáról és SSH hozzáférést egy meghatározott IP címről.
